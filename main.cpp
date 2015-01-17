@@ -1,4 +1,8 @@
 /*
+ * Copyright (C) 2015 CODYCO Project
+ * Author: Serena Ivaldi <serena.ivaldi@inria.fr>
+ * website: www.codyco.eu
+ *
  * Copyright (C) 2013-2014 MACSi & EDHHI Projects
  * Author: Serena Ivaldi, Charles Ballarini
  * email:  serena.ivaldi@isir.upmc.fr
@@ -12,14 +16,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
  * Public License for more details
 */
-
+ 
 
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/dev/all.h>
 
-#include <macsi/modHelp/modHelp.h>
-#include <macsi/objects/objects.h>
+//#include <macsi/modHelp/modHelp.h>
+//#include <macsi/objects/objects.h>
 
 #include <yarp/os/Network.h>
 #include <yarp/os/RFModule.h>
@@ -45,8 +49,8 @@
 using namespace yarp::os;
 using namespace yarp::sig;
 using namespace yarp::dev;
-using namespace macsi::modHelp;
-using namespace macsi::objects;
+//using namespace macsi::modHelp;
+//using namespace macsi::objects;
 using namespace std;
 
 // necessary for cartesian interface
@@ -55,6 +59,50 @@ YARP_DECLARE_DEVICES(icubmod)
 // utils for printing parameters
 #define DSCPA(V) cout<<"  "<< #V <<" : "<<V<<endl;
 #define DSCPAv(V) cout<<"  "<< #V <<" : "<<V.toString()<<endl;
+
+
+//==> from modHelp
+
+#define displayValue(V) cout<<" "<< #V <<" : "<<V<<endl;
+#define displayNameValue(S,V) cout<<" "<< S <<" : "<<V<<endl;
+#define displayVector(V) cout<<" "<< #V <<" : "<<V.toString()<<endl;
+#define displayNameVector(S,V) cout<<" "<< S <<" : "<<V.toString()<<endl;
+
+ void readString(ResourceFinder &rf, string name, string &v, string vdefault)
+{
+if(rf.check(name.c_str()))
+{
+v = rf.find(name.c_str()).asString();
+}
+else
+{
+v = vdefault;
+cout<<"Could not find value for "<<name<<". "
+<<"Setting default "<<vdefault<<endl;
+}
+displayNameValue(name,v);
+}
+
+
+void readInt(ResourceFinder &rf, string name, int &v, int vdefault)
+{
+if(rf.check(name.c_str()))
+{
+v = rf.find(name.c_str()).asInt();
+}
+else
+{
+v = vdefault;
+cout<<"Could not find value for "<<name<<". "
+<<"Setting default "<<vdefault<<endl;
+}
+displayNameValue(name,v);
+}
+
+
+//==>end
+
+
 
 
 Port TrajPlayer::guiPort = Port ();
@@ -206,24 +254,30 @@ public:
         optionsCart.put("device","cartesiancontrollerclient");
         optionsCart.put("remote",string("/"+robot+"/cartesianController/"+part).c_str());
         optionsCart.put("local",string("/"+name+"/"+part+"/cartesian").c_str());
+
+	cout<<"++++ cartesian driver: open " <<endl;
         if (!ddCart->open(optionsCart))
         {
             cout<<"Problems connecting to the Cartesian interface of "<<part<<endl;
             close();
             return false;
         }
+	cout<<"++++ cartesian driver: is valid " <<endl;
         if(!ddCart->isValid())
         {
             cout<<"Invalid Cartesian interface for "<<part<<endl;
             close();
             return false;
         }
+	cout<<"++++ cartesian driver: view " <<endl;
         if(!ddCart->view(icrt))
         {
             cout<<"Problems acquiring the Cartesian interface of "<<part<<endl;
             close();
             return false;
         }
+	
+	return true;
     }
 
     //---------------------------------------------------------
@@ -342,11 +396,14 @@ public:
         // DSCPAv(orientHand_R);
 
         // open the device drivers
-        // left arm
+        
         bool isDDOpen = false;
         dd_L = new PolyDriver;
         dd_R = new PolyDriver;
         dd_T = new PolyDriver;
+	
+	// left arm
+	cout<<"** Opening left arm drivers"<<endl;
         isDDOpen = openDriversArm(options_L, "left_arm", dd_L, ipos_L, ienc_L, imode_L, iimp_L);
 
         if(isDDOpen==false)
@@ -355,8 +412,8 @@ public:
             return false;
         }
 
-
         //right arm
+	cout<<"** Opening right arm drivers"<<endl;
         isDDOpen = openDriversArm(options_R, "right_arm", dd_R, ipos_R, ienc_R, imode_R, iimp_R);
         if(isDDOpen==false)
         {
@@ -364,6 +421,7 @@ public:
             return false;
         }
         //torso
+	cout<<"** Opening torso drivers"<<endl;
         isDDOpen = openDriversTorso(options_T, dd_T, ipos_T, ienc_T, imode_T, iimp_T); 
         if(isDDOpen==false)
         {
@@ -373,19 +431,26 @@ public:
         
 
         // open the cartesian drivers
-        // left arm
+ 
         ddCart_L = new PolyDriver ();
         ddCart_R =  new PolyDriver ();
+       // left arm
+	cout<<"** Opening left arm cartesian"<<endl;
         if(openCartesians(optionsCart_L, "left_arm", ddCart_L, icrt_L)==false)
             return false;
         // right arm
+	cout<<"** Opening right arm cartesian"<<endl;
         if(openCartesians(optionsCart_R, "right_arm", ddCart_R, icrt_R)==false)
             return false;
 
 
+	cout<<"** All drivers open **"<<endl;
+
         //Start listening
         rpc.open(string("/"+name+"/rpc:i").c_str());
         attach(rpc);
+
+	cout<<"** rpc port open **"<<endl;
 
         return true;
 
@@ -739,12 +804,21 @@ int main(int argc, char *argv[])
     //necessary for Cartesian interface
     YARP_REGISTER_DEVICES(icubmod)
 
+    Network yarp;
+    if (!yarp.checkNetwork())
+    {
+        cout<<"YARP network not available. Aborting."<<endl;
+        return -1;
+    }
+
     string moduleName;
+
     ResourceFinder rf;
+    //retrieve information for the list of parts
     rf.setVerbose(true);
-    rf.setDefaultContext("WoZ");
-    rf.setDefaultConfigFile("conf/taskPlayer.ini");
-    rf.configure("MACSI_ROOT",argc,argv);
+    rf.setDefaultContext("taskRecorder");
+    rf.setDefaultConfigFile("taskPlayer.ini");
+    rf.configure(argc,argv);
 
     moduleName = rf.find("moduleName").asString();
     if (moduleName == "")
@@ -760,17 +834,12 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    Network yarp;
-    if (!yarp.checkNetwork())
-    {
-        cout<<"YARP network not available. Aborting."<<endl;
-        return -1;
-    }
-
 
     TrajPlayer::guiPort.open(string("/"+moduleName+"/display:o").c_str());
     Network::connect(string("/"+moduleName+"/display:o").c_str(),"/iCubGui/objects");
 
     TrajModule mod;
-    return mod.runModule(rf);
+    mod.runModule(rf);
+
+    return 0;
 }

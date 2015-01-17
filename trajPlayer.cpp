@@ -1,4 +1,8 @@
 /*
+ * Copyright (C) 2015 CODYCO Project
+ * Author: Serena Ivaldi <serena.ivaldi@inria.fr>
+ * website: www.codyco.eu
+ *
  * Copyright (C) 2011-2012 MACSi Project
  * Author: Serena Ivaldi
  * email:  serena.ivaldi@isir.upmc.fr
