@@ -104,10 +104,13 @@ displayNameValue(name,v);
 
 
 
-
+// global shared port for communicating with the iCub_GUI
 Port TrajPlayer::guiPort = Port ();
 
 
+
+// MODULE
+//-------------------------------------
 class TrajModule: public RFModule
 {
 private:
@@ -174,6 +177,7 @@ private:
         return string(buff);
     }
 
+    //---------------------------------------------------------
     std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) 
     {
         std::stringstream ss(s);
@@ -184,7 +188,7 @@ private:
         return elems;
     }
 
-
+    //---------------------------------------------------------
     std::vector<std::string> split(const std::string &s, char delim) {
         std::vector<std::string> elems;
         split(s, delim, elems);
@@ -224,6 +228,8 @@ public:
         return true;
 
     }
+
+    //---------------------------------------------------------    
     bool openDriversTorso(Property &options, PolyDriver *pd, IPositionControl *ipos, IEncoders *ienc, IControlMode *imode, IImpedanceControl *iimp)
     {
         // open the device drivers
@@ -456,6 +462,10 @@ public:
 
     }
 
+
+    //---------------------------------------------------------
+    // LOADING TRAJECTORIES
+    //---------------------------------------------------------
     void LoadFile (string filepath)
     {
         cout<<"Reading trajectories from files "<<endl;
@@ -471,6 +481,8 @@ public:
 
             //iFile=string(rf.getContextPath().c_str())+"/"+file+i2s(i+1)+"_dmp_output.txt";
             filename = string (filepath);
+
+	    cout<<"++++ Loading trajectory file from path: "<<filepath<<endl;
 
             inputFile.open(filename.c_str());
             if (!inputFile.is_open ())
@@ -600,6 +612,9 @@ public:
         players.insert (std::pair<string, TrajPlayer*> (filepath, player));
     }
 
+    //---------------------------------------------------------
+    // PLAYING TRAJECTORIES
+    //---------------------------------------------------------
     void PlayFile (string filename, int initMode, int controlMode)
     {
         if (isPlaying)
@@ -630,6 +645,9 @@ public:
         }
     }
 
+    //---------------------------------------------------------
+    // DISPLAY TRAJECTORIES
+    //---------------------------------------------------------
     void displayTrajectory (string filename)
     {
         if (players.find (filename) == players.end ())
@@ -638,6 +656,9 @@ public:
             players.find(filename)->second->displayTrajectory();
     }
 
+    //---------------------------------------------------------
+    // CLEAR TRAJECTORIES
+    //---------------------------------------------------------
     void clearTrajectory (string filename)
     {
         if (players.find (filename) == players.end ())
@@ -646,7 +667,9 @@ public:
             players.find(filename)->second->clearTrajectory();
     }
 
-
+    //---------------------------------------------------------
+    // STOP MOTION
+    //---------------------------------------------------------
     void stop_all ()
     {
         if (players.find (currentFile) != players.end ())
@@ -657,6 +680,10 @@ public:
         isPlaying = false;
     }
 
+
+    //---------------------------------------------------------
+    // RPC - COMMANDS
+    //---------------------------------------------------------
     bool respond(const Bottle& command, Bottle& reply)
     {
         string c = command.toString().c_str ();
@@ -836,6 +863,7 @@ int main(int argc, char *argv[])
 
 
     TrajPlayer::guiPort.open(string("/"+moduleName+"/display:o").c_str());
+    cout<<"++++ Automatic connection to iCubGui (if exists)"<<endl;
     Network::connect(string("/"+moduleName+"/display:o").c_str(),"/iCubGui/objects");
 
     TrajModule mod;
